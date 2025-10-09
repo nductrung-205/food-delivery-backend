@@ -11,6 +11,11 @@ use App\Http\Controllers\Api\CommentController;
 use App\Http\Controllers\Api\BannerController;
 use App\Http\Controllers\Api\CouponController;
 
+Route::get('/', function () {
+    return response()->json(['message' => 'API is working']);
+});
+
+
 Route::post('/register', [AuthController::class, 'register']);
 Route::post('/login', [AuthController::class, 'login'])->name('login');
 
