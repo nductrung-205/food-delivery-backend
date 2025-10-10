@@ -12,13 +12,18 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
-        
+        // Tắt CSRF cho API
         $middleware->validateCsrfTokens(except: [
             'api/*',
         ]);
         
-        
+        // Stateful API cho Sanctum
         $middleware->statefulApi();
+        
+        // ⚠️ THÊM DÒNG NÀY - Cho phép CORS
+        $middleware->api(prepend: [
+            \Illuminate\Http\Middleware\HandleCors::class,
+        ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         //
