@@ -16,10 +16,13 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->validateCsrfTokens(except: [
             'api/*',
         ]);
-        
+        $middleware->api(prepend: [
+            \App\Http\Middleware\Cors::class,
+        ]);
+
         // Stateful API cho Sanctum
         $middleware->statefulApi();
-        
+
         // ⚠️ THÊM DÒNG NÀY - Cho phép CORS
         $middleware->api(prepend: [
             \Illuminate\Http\Middleware\HandleCors::class,
