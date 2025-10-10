@@ -12,7 +12,8 @@ class ProductController extends Controller
 {
     // GET /api/products
     public function index()
-    {
+{
+    try {
         $products = Product::with('category')->get();
 
         foreach ($products as $product) {
@@ -22,7 +23,11 @@ class ProductController extends Controller
         }
 
         return response()->json($products);
+    } catch (\Exception $e) {
+        Log::error('❌ Lỗi khi lấy danh sách sản phẩm: ' . $e->getMessage());
+        return response()->json(['message' => 'Lỗi server'], 500);
     }
+}
 
     // GET /api/products/{id}
     public function show($id)

@@ -6,3 +6,5 @@ Route::get('/', function () {
     return response()->json(['message' => 'Laravel backend is running']);
 });
 
+
+
