@@ -10,10 +10,13 @@ use App\Http\Controllers\Api\ReviewController;
 use App\Http\Controllers\Api\CommentController;
 use App\Http\Controllers\Api\BannerController;
 use App\Http\Controllers\Api\CouponController;
+use App\Http\Controllers\ImageController;
 
 Route::get('/', function () {
     return response()->json(['message' => 'API is working']);
 });
+
+Route::post('/images/upload', [ImageController::class, 'upload']);
 
 // Public routes
 Route::post('/register', [AuthController::class, 'register']);
@@ -50,6 +53,8 @@ Route::middleware(['auth:sanctum', 'can:isAdmin'])->prefix('admin')->group(funct
     Route::apiResource('users', UserController::class);
     
     // Products - REMOVED DUPLICATE
+    Route::get('/products', [ProductController::class, 'index']);
+    Route::get('/products/{id}', [ProductController::class, 'show']);
     Route::post('/products', [ProductController::class, 'store']);
     Route::put('/products/{id}', [ProductController::class, 'update']);
     Route::delete('/products/{id}', [ProductController::class, 'destroy']);
