@@ -95,7 +95,6 @@ class ProductController extends Controller
         }
     }
 
-    // POST /api/products
     public function store(Request $request)
     {
         $validated = $request->validate([
