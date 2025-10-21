@@ -30,13 +30,17 @@ class Product extends Model
 
     public function getImageUrlAttribute()
     {
-        if ($this->image) {
-            // Luôn dùng HTTPS, kể cả khi APP_URL là HTTP
-            $url = asset('storage/' . $this->image);
-            return preg_replace('/^http:/', 'https:', $url);
+        if (!$this->image) return null;
+
+        // Nếu là link Cloudinary
+        if (preg_match('/^https?:\/\//', $this->image)) {
+            return $this->image;
         }
-        return null;
+
+        // Nếu là ảnh local
+        return asset('storage/' . $this->image);
     }
+
 
 
     public function category()
