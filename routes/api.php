@@ -10,11 +10,13 @@ use App\Http\Controllers\Api\ReviewController;
 use App\Http\Controllers\Api\CommentController;
 use App\Http\Controllers\Api\BannerController;
 use App\Http\Controllers\Api\CouponController;
+use App\Http\Controllers\ImageController;
 
 Route::get('/', function () {
     return response()->json(['message' => 'API is working']);
 });
 
+Route::post('/images/upload', [ImageController::class, 'upload']);
 
 // Public routes
 Route::post('/register', [AuthController::class, 'register']);
