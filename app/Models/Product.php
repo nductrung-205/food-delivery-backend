@@ -25,14 +25,22 @@ class Product extends Model
         'stock' => 'integer',
     ];
 
+    // ⚡️Tự động thêm trường image_url vào JSON trả về
     protected $appends = ['image_url'];
 
     public function getImageUrlAttribute()
     {
-        if ($this->image) {
-            return asset('storage/' . $this->image);
+        if (!$this->image) {
+            return null;
         }
-        return null;
+
+        // Nếu ảnh là Cloudinary (bắt đầu bằng http hoặc https)
+        if (preg_match('/^https?:\/\//', $this->image)) {
+            return $this->image;
+        }
+
+        // Còn lại là ảnh local (cũ), trả về qua asset()
+        return asset('storage/' . $this->image);
     }
 
     public function category()
