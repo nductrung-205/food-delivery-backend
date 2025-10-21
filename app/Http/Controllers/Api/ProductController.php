@@ -5,9 +5,9 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Product;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\DB;
+use CloudinaryLabs\CloudinaryLaravel\Facades\Cloudinary;
 
 class ProductController extends Controller
 {
@@ -17,32 +17,23 @@ class ProductController extends Controller
         try {
             Log::info('=== ProductController@index START ===');
             
-            // Test database connection
             DB::connection()->getPdo();
             Log::info('✅ Database connected');
             
-            // Count products
             $count = Product::count();
             Log::info("📊 Total products in database: {$count}");
             
-            // Get products with category
             $products = Product::with('category')->get();
             Log::info("✅ Products retrieved: {$products->count()}");
 
-            // Add image URLs
-            foreach ($products as $product) {
-                if ($product->image) {
-                    $product->image_url = asset('storage/' . $product->image);
-                }
-            }
-
+            // Không cần thêm image_url nữa vì đã lưu full URL từ Cloudinary
+            
             Log::info('=== ProductController@index SUCCESS ===');
             return response()->json($products, 200);
             
         } catch (\PDOException $e) {
             Log::error('❌ DATABASE ERROR in ProductController@index');
             Log::error('Message: ' . $e->getMessage());
-            Log::error('Code: ' . $e->getCode());
             
             return response()->json([
                 'message' => 'Lỗi kết nối database',
@@ -52,15 +43,11 @@ class ProductController extends Controller
         } catch (\Exception $e) {
             Log::error('❌ ERROR in ProductController@index');
             Log::error('Message: ' . $e->getMessage());
-            Log::error('File: ' . $e->getFile());
-            Log::error('Line: ' . $e->getLine());
             Log::error('Trace: ' . $e->getTraceAsString());
             
             return response()->json([
                 'message' => 'Lỗi server khi lấy danh sách sản phẩm',
-                'error' => $e->getMessage(),
-                'file' => basename($e->getFile()),
-                'line' => $e->getLine()
+                'error' => $e->getMessage()
             ], 500);
         }
     }
@@ -72,10 +59,6 @@ class ProductController extends Controller
             Log::info("=== Getting product ID: {$id} ===");
             
             $product = Product::with('category')->findOrFail($id);
-
-            if ($product->image) {
-                $product->image_url = asset('storage/' . $product->image);
-            }
 
             Log::info("✅ Product found: {$product->name}");
             return response()->json($product);
@@ -95,6 +78,7 @@ class ProductController extends Controller
         }
     }
 
+    // POST /api/products
     public function store(Request $request)
     {
         $validated = $request->validate([
@@ -111,14 +95,29 @@ class ProductController extends Controller
             Log::info('=== Creating new product ===');
             Log::info('Data: ' . json_encode($validated));
             
+            // Upload ảnh lên Cloudinary
             if ($request->hasFile('image')) {
-                $path = $request->file('image')->store('products', 'public');
-                $validated['image'] = $path;
-                Log::info("✅ Image uploaded: {$path}");
+                $uploadedFile = Cloudinary::upload(
+                    $request->file('image')->getRealPath(),
+                    [
+                        'folder' => 'products',
+                        'resource_type' => 'image',
+                        'transformation' => [
+                            'width' => 800,
+                            'height' => 800,
+                            'crop' => 'limit',
+                            'quality' => 'auto'
+                        ]
+                    ]
+                );
+
+                $validated['image'] = $uploadedFile->getSecurePath();
+                $validated['cloudinary_public_id'] = $uploadedFile->getPublicId();
+                
+                Log::info("✅ Image uploaded to Cloudinary: {$validated['image']}");
             }
 
             $product = Product::create($validated);
-            $product->image_url = $product->image ? asset('storage/' . $product->image) : null;
 
             Log::info("✅ Product created: ID {$product->id}");
             return response()->json($product, 201);
@@ -156,20 +155,40 @@ class ProductController extends Controller
                 'image'       => 'nullable|image|mimes:jpeg,png,jpg,gif,webp,jfif|max:2048',
             ]);
 
+            // Upload ảnh mới lên Cloudinary
             if ($request->hasFile('image')) {
-                // Xóa ảnh cũ nếu có
-                if ($product->image && Storage::disk('public')->exists($product->image)) {
-                    Storage::disk('public')->delete($product->image);
-                    Log::info("🗑️  Old image deleted: {$product->image}");
+                // Xóa ảnh cũ trên Cloudinary nếu có
+                if ($product->cloudinary_public_id) {
+                    try {
+                        Cloudinary::destroy($product->cloudinary_public_id);
+                        Log::info("🗑️  Old image deleted from Cloudinary: {$product->cloudinary_public_id}");
+                    } catch (\Exception $e) {
+                        Log::warning("⚠️  Could not delete old image: " . $e->getMessage());
+                    }
                 }
 
-                $path = $request->file('image')->store('products', 'public');
-                $validated['image'] = $path;
-                Log::info("✅ New image uploaded: {$path}");
+                // Upload ảnh mới
+                $uploadedFile = Cloudinary::upload(
+                    $request->file('image')->getRealPath(),
+                    [
+                        'folder' => 'products',
+                        'resource_type' => 'image',
+                        'transformation' => [
+                            'width' => 800,
+                            'height' => 800,
+                            'crop' => 'limit',
+                            'quality' => 'auto'
+                        ]
+                    ]
+                );
+
+                $validated['image'] = $uploadedFile->getSecurePath();
+                $validated['cloudinary_public_id'] = $uploadedFile->getPublicId();
+                
+                Log::info("✅ New image uploaded to Cloudinary: {$validated['image']}");
             }
 
             $product->update($validated);
-            $product->image_url = $product->image ? asset('storage/' . $product->image) : null;
 
             Log::info("✅ Product updated: ID {$product->id}");
             return response()->json($product);
@@ -197,9 +216,14 @@ class ProductController extends Controller
             
             $product = Product::findOrFail($id);
 
-            if ($product->image && Storage::disk('public')->exists($product->image)) {
-                Storage::disk('public')->delete($product->image);
-                Log::info("🗑️  Image deleted: {$product->image}");
+            // Xóa ảnh trên Cloudinary nếu có
+            if ($product->cloudinary_public_id) {
+                try {
+                    Cloudinary::destroy($product->cloudinary_public_id);
+                    Log::info("🗑️  Image deleted from Cloudinary: {$product->cloudinary_public_id}");
+                } catch (\Exception $e) {
+                    Log::warning("⚠️  Could not delete image: " . $e->getMessage());
+                }
             }
 
             $product->delete();

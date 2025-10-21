@@ -17,6 +17,7 @@ class Product extends Model
         'stock',
         'status',
         'image',
+        'cloudinary_public_id'
     ];
 
     protected $casts = [
