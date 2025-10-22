@@ -7,10 +7,6 @@ Route::get('/', function () {
     return response()->json(['message' => 'Laravel backend is running']);
 });
 
-Route::get('/storage-link', function () {
-    Artisan::call('storage:link');
-    return 'Storage link created successfully!';
-});
 
 
 

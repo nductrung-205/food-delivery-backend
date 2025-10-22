@@ -16,22 +16,20 @@ COPY . .
 
 # Cài composer và dependency
 RUN curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer
-ENV COMPOSER_MEMORY_LIMIT=-1
-RUN composer install --no-dev --optimize-autoloader --no-interaction --no-progress
+RUN composer install --no-dev --optimize-autoloader
 
-# ✅ KHÔNG chạy artisan ở build phase (vì Render chưa inject ENV)
-# ✅ Chỉ tạo quyền truy cập file
-RUN chmod -R 775 storage bootstrap/cache
+# ✅ Xóa cache cũ trước khi cache lại
+RUN php artisan config:clear && php artisan cache:clear && php artisan route:clear && php artisan view:clear
 
-# Mở port cho Laravel
+# ✅ Chạy migrate để đảm bảo kết nối MySQL đúng
+RUN php artisan migrate --force
+
+# ✅ Tạo symbolic link storage/public
+RUN php artisan storage:link
+
+# ✅ Tạo cache mới (đảm bảo dùng MySQL)
+RUN php artisan config:cache && php artisan route:cache
+
 EXPOSE 8000
 
-# ✅ Khi container khởi động (đã có biến ENV của Render) → chạy artisan
-CMD php artisan config:clear && \
-    php artisan cache:clear && \
-    php artisan route:clear && \
-    php artisan view:clear && \
-    php artisan key:generate --force && \
-    php artisan storage:link && \
-    php artisan migrate --force && \
-    php artisan serve --host=0.0.0.0 --port=${PORT:-8000}
+CMD php artisan serve --host=0.0.0.0 --port=$PORT
